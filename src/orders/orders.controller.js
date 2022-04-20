@@ -3,11 +3,13 @@ const orders = require(path.resolve("src/data/orders-data"));
 const nextId = require("../utils/nextId");
 
 //Functional Middleware functions:
-const orderExists = (req, res, next) => {
+//function to confirm if order exist
+function orderExists(req, res, next){
    const orderId = req.params.orderId;
    res.locals.orderId = orderId;
    const foundOrder = orders.find((order) => order.id === orderId);
    if (!foundOrder) {
+      //if order is not found, return 404 status/message
       return next({
          status: 404,
          message: `Order not found: ${orderId}` });
@@ -15,7 +17,7 @@ const orderExists = (req, res, next) => {
    res.locals.order = foundOrder;
 };
 
-const orderValidDeliverTo = (req, res, next) => {
+function orderValidDeliverTo(req, res, next){
    const { data = null } = req.body;
    res.locals.newOD = data;
    const orderdeliverTo = data.deliverTo;
@@ -27,7 +29,8 @@ const orderValidDeliverTo = (req, res, next) => {
    }
 };
 
-const orderHasValidMobileNumber = (req, res, next) => {
+
+function orderHasValidMobileNumber(req, res, next){
    const orderMobileNumber = res.locals.newOD.mobileNumber;
    if (!orderMobileNumber || orderMobileNumber.length === 0) {
       return next({
@@ -37,7 +40,7 @@ const orderHasValidMobileNumber = (req, res, next) => {
    }
 };
 
-const orderHasDishes = (req, res, next) => {
+function orderHasDishes(req, res, next){
    const orderDishes = res.locals.newOD.dishes;
    if (!orderDishes || !Array.isArray(orderDishes) || orderDishes.length <= 0) {
       return next({
@@ -48,7 +51,7 @@ const orderHasDishes = (req, res, next) => {
    res.locals.dishes = orderDishes;
 };
 
-const orderHasValidDishes = (req, res, next) => {
+function orderHasValidDishes(req, res, next){
    const orderDishes = res.locals.dishes;
    orderDishes.forEach((dish) => {
       const dishQuantity = dish.quantity;
@@ -63,7 +66,7 @@ const orderHasValidDishes = (req, res, next) => {
    });
 };
 
-const orderIdMatches = (req, res, next) => {
+function orderIdMatches(req, res, next){
    const paramId = res.locals.orderId;
    const { id = null } = res.locals.newOD;
    if (!id || id === null) {
@@ -76,7 +79,7 @@ const orderIdMatches = (req, res, next) => {
    }
 };
 
-const incomingStatusIsValid = (req, res, next) => {
+function incomingStatusIsValid(req, res, next){
    const { status = null } = res.locals.newOD;
    if (!status || status.length === 0 || status === "invalid") {
       return next({
@@ -87,7 +90,7 @@ const incomingStatusIsValid = (req, res, next) => {
    }
 };
 
-const extantStatusIsValid = (req, res, next) => {
+function extantStatusIsValid(req, res, next){
    const { status = null } = res.locals.order;
    if (status === "delivered") {
       return next({
@@ -97,7 +100,7 @@ const extantStatusIsValid = (req, res, next) => {
    }
 };
 
-const extantStatusIsPending = (req, res, next) => {
+function extantStatusIsPending(req, res, next){
    const { status = null } = res.locals.order;
    if (status !== "pending") {
       return next({
@@ -108,7 +111,7 @@ const extantStatusIsPending = (req, res, next) => {
 };
 
 //Clarity Middleware Functions
-const createValidation = (req, res, next) => {
+function createValidation(req, res, next){
    orderValidDeliverTo(req, res, next);
    orderHasValidMobileNumber(req, res, next);
    orderHasDishes(req, res, next);
@@ -116,12 +119,12 @@ const createValidation = (req, res, next) => {
    next();
 };
 
-const readValidation = (req, res, next) => {
+function readValidation(req, res, next){
    orderExists(req, res, next);
    next();
 };
 
-const updateValidation = (req, res, next) => {
+function updateValidation(req, res, next){
    orderExists(req, res, next);
    orderValidDeliverTo(req, res, next);
    orderHasValidMobileNumber(req, res, next);
@@ -133,38 +136,43 @@ const updateValidation = (req, res, next) => {
    next();
 };
 
-const deleteValidation = (req, res, next) => {
+function deleteValidation(req, res, next){
    orderExists(req, res, next);
    extantStatusIsPending(req, res, next);
    next();
 };
 
 //Handlers:
+
+//function to create a new order
 function createOrder(req, res) {
-   const newOrderData = res.locals.newOD;
+   const newOrderData = res.locals.newOD; //retrieve new order data
    newOrderData.id = nextId();
-   orders.push(newOrderData);
+   orders.push(newOrderData); //add new orders to existing orders
    res.status(201).json({ data: newOrderData });
 }
 
 function read(req, res) {
-   res.status(200).json({ data: res.locals.order });
+   res.status(200).json({ data: res.locals.order }); 
 }
 
+//function to update orders
 function updateOrder(req, res) {
-   const newData = res.locals.newOD;
-   const oldData = res.locals.order;
+   const newData = res.locals.newOD; //assign new orders to newData variable
+   const oldData = res.locals.order; //assign orders to oldData variable
    const index = orders.indexOf(oldData);
    for (const key in newData) {
+      //Update orders
       orders[index][key] = newData[key];
    }
    res.status(200).json({ data: orders[index] });
 }
 
 function list(req, res) {
-   res.status(200).json({ data: orders });
+   res.status(200).json({ data: orders }); //retrieve and list orders
 }
 
+//function to delete orders
 function destroy(req, res) {
    const index = orders.indexOf(res.locals.order);
    orders.splice(index, 1);
